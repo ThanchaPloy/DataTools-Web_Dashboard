@@ -5,6 +5,8 @@
 - โหมดทดสอบ: เทียบคะแนนกับผลจริงของลูกค้าที่โทรแล้ว
 - ข้อมูลโมเดลจากชีต model_info
 """
+import html
+
 import pandas as pd
 import streamlit as st
 
@@ -114,7 +116,7 @@ with tab_rank:
 # แท็บ 2: เกี่ยวกับโมเดล
 # ============================================================
 with tab_about:
-    left, right = st.columns([3, 2])
+    left, right = st.columns([1, 1])
     with left:
         ui.card("โมเดลทำงานอย่างไร",
                 "โมเดลเรียนจากการโทรในอดีตว่าลูกค้าแบบไหนตอบรับ แล้วให้คะแนนโอกาสตอบรับของลูกค้าแต่ละคน "
@@ -128,9 +130,47 @@ with tab_about:
                 f"= โอกาสตอบรับ × {PROFIT:g} − {COST:g} (กำไรต่อคนที่ตอบรับและต้นทุนต่อสายเป็นค่าสมมติ) "
                 "ค่าบวก = โทรแล้วคุ้ม")
     with right:
+        # ป้ายภาษาไทย และรูปแบบการแสดงผลของค่าจากชีต model_info
+        INFO_LABELS = {
+            "model": ("โมเดลที่ใช้", "text"),
+            "test_roc_auc": ("ROC-AUC บน test set", "num"),
+            "test_recall": ("Recall บน test set", "pct"),
+            "test_f1": ("F1 บน test set", "num"),
+            "threshold": ("เกณฑ์ 'ควรโทรก่อน' (โอกาสตอบรับขั้นต่ำ)", "pct"),
+            "profit_per_yes": ("กำไรต่อคนที่ตอบรับ (สมมติ)", "money"),
+            "cost_per_call": ("ต้นทุนต่อสาย (สมมติ)", "money"),
+            "n_scored": ("จำนวนลูกค้าที่ Colab ให้คะแนน", "int"),
+            "scored_at": ("ให้คะแนนล่าสุดเมื่อ", "text"),
+        }
+
+        def fmt(value, kind):
+            try:
+                if kind == "pct":
+                    return ui.fmt_pct(float(value))
+                if kind == "num":
+                    return f"{float(value):.3f}"
+                if kind == "int":
+                    return f"{int(float(value)):,} คน"
+                if kind == "money":
+                    return f"{float(value):,.0f}"
+            except (TypeError, ValueError):
+                pass
+            return str(value)
+
         rows = [("ลูกค้าที่มีคะแนน", f"{int(scored.sum()):,} จาก {len(df):,} คน")]
-        rows += [(k, str(v)) for k, v in info.items()]
-        st.dataframe(pd.DataFrame(rows, columns=["รายการ", "ค่า"]),
-                     hide_index=True, width="stretch")
+        rows += [(label, fmt(info[key], kind)) for key, (label, kind) in INFO_LABELS.items()
+                 if key in info and str(info[key]) != ""]
+        rows += [(k, str(v)) for k, v in info.items()            # ค่าอื่นที่ไม่รู้จัก แสดงตามเดิม
+                 if k not in INFO_LABELS and k != "features"]
+        # ตาราง HTML: ขยายตามเนื้อหา แสดงครบทุกแถวและทุกตัวอักษร ไม่ต้องเลื่อน
+        body = "".join(f"<tr><td>{html.escape(k)}</td><td>{html.escape(v)}</td></tr>" for k, v in rows)
+        st.markdown(f'<table class="info-table"><thead><tr><th>รายการ</th><th>ค่า</th></tr></thead>'
+                    f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
+
+        if info.get("features"):
+            st.markdown("**ฟีเจอร์ที่โมเดลใช้**")
+            st.markdown(" ".join(ui.badge(f.strip(), "good")
+                                 for f in str(info["features"]).split(",")),
+                        unsafe_allow_html=True)
         if not info:
             st.caption("ยังไม่มีชีต model_info (Colab จะสร้างให้ตอนรัน Step 19)")

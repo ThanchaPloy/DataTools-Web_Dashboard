@@ -74,6 +74,15 @@ h1, h2, h3 {{ color: {NAVY}; font-weight: 600; letter-spacing: -0.01em; }}
     border-radius: 10px; font-weight: 500; }}
 .stTabs [data-baseweb="tab-list"] {{ gap: 0.4rem; }}
 .stTabs [data-baseweb="tab"] {{ padding: 0.5rem 1rem; }}
+/* ตารางข้อมูลแบบ key-value (หน้า ML) */
+.info-table {{ width: 100%; border-collapse: separate; border-spacing: 0; background: #FFFFFF;
+    border: 1px solid {GRID}; border-radius: 12px; overflow: hidden; font-size: 0.92rem; }}
+.info-table th {{ text-align: left; color: {SLATE}; font-weight: 500; background: #F8FAFC;
+    padding: 0.55rem 0.9rem; border-bottom: 1px solid {GRID}; }}
+.info-table td {{ padding: 0.55rem 0.9rem; border-bottom: 1px solid {GRID}; color: #334155;
+    vertical-align: top; }}
+.info-table tr:last-child td {{ border-bottom: none; }}
+.info-table td:last-child {{ color: {NAVY}; font-weight: 500; word-break: break-word; }}
 .change-bar {{ background: #FFFFFF; border: 1px solid {GRID}; border-radius: 12px;
     padding: 0.75rem 1rem; color: #334155; font-size: 0.95rem; }}
 .change-bar b {{ color: {NAVY}; }}

@@ -57,11 +57,6 @@ column_config = {
     C.ID_COL: st.column_config.TextColumn(C.LABELS[C.ID_COL], disabled=True,
                                           help="สร้างอัตโนมัติเมื่อบันทึก"),
     C.UPDATED_COL: st.column_config.TextColumn(C.LABELS[C.UPDATED_COL], disabled=True),
-    # คอลัมน์คะแนนมาจาก Colab แก้ในเว็บไม่ได้
-    "prob_yes": st.column_config.NumberColumn(C.LABELS["prob_yes"], format="percent", disabled=True),
-    "persona": st.column_config.TextColumn(C.LABELS["persona"], disabled=True),
-    "action": st.column_config.TextColumn(C.LABELS["action"], disabled=True),
-    "scored_at": st.column_config.TextColumn(C.LABELS["scored_at"], disabled=True),
     C.TARGET_COL: st.column_config.SelectboxColumn(
         C.LABELS[C.TARGET_COL], options=C.ALLOWED["y"], required=True,
         help="pending = รอโทร, yes = ตอบรับ, no = ไม่ตอบรับ"),
@@ -75,8 +70,11 @@ for col, (lo, hi) in C.NUMERIC_RANGES.items():
     column_config[col] = st.column_config.NumberColumn(
         C.LABELS[col], min_value=lo, max_value=hi, step=step, required=True)
 
+# ไม่แสดงคอลัมน์คะแนนในตารางนี้ (มาจาก Colab แก้ในเว็บไม่ได้ ดูได้ที่หน้า 'จัดอันดับลูกค้า (ML)')
+EDIT_COLUMNS = [c for c in C.ALL_COLUMNS if c not in C.SCORE_COLUMNS]
+
 edited = st.data_editor(
-    view[C.ALL_COLUMNS],
+    view[EDIT_COLUMNS],
     key=f"editor_{st.session_state.editor_version}_{search}_{status}_{jobs}_{ages}",
     num_rows="dynamic",
     hide_index=True,
