@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+.venv-*/
+credentials/*.json
+data/bank_data.xlsx

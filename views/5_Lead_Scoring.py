@@ -1,0 +1,136 @@
+"""
+หน้า 5: จัดอันดับลูกค้าด้วยคะแนนจากโมเดล ML
+เว็บไม่โหลดโมเดลเอง คะแนนถูกเขียนลงชีต customers โดย Colab (Step 19 ใน notebook)
+- จัดอันดับลูกค้า 'รอโทร' ว่าควรโทรหาใครก่อน
+- โหมดทดสอบ: เทียบคะแนนกับผลจริงของลูกค้าที่โทรแล้ว
+- ข้อมูลโมเดลจากชีต model_info
+"""
+import pandas as pd
+import streamlit as st
+
+from core import config as C
+from core import ui
+from core.data_io import load_model_info, require_data
+
+ui.page_header("ควรโทรหาใครก่อน",
+               "จัดอันดับรายชื่อด้วยคะแนนโอกาสตอบรับจากโมเดล Machine Learning (ให้คะแนนผ่าน Google Colab)",
+               eyebrow="Machine Learning")
+
+customers, _ = require_data()
+info = load_model_info()
+THRESHOLD = float(info.get("threshold", 0.2) or 0.2)
+PROFIT = float(info.get("profit_per_yes", C.PROFIT_PER_YES) or C.PROFIT_PER_YES)
+COST = float(info.get("cost_per_call", C.COST_PER_CALL) or C.COST_PER_CALL)
+
+df = customers.copy()
+df["expected_profit"] = df["prob_yes"] * PROFIT - COST
+scored = df["prob_yes"].notna()
+
+if not scored.any():
+    ui.card("ยังไม่มีคะแนนจากโมเดล",
+            "1) เปิด notebook ใน Colab แล้วรันให้ถึง Step 19 (ให้คะแนนลูกค้าใน Google Sheet) · "
+            "2) กลับมากด 'โหลดข้อมูลล่าสุด' ที่เมนูด้านซ้าย")
+    st.stop()
+
+SHOW = {"rank": "อันดับ", C.ID_COL: "รหัสลูกค้า", "age": "อายุ", "job": "อาชีพ",
+        "education": "การศึกษา", "contact": "ช่องทาง", "persona": "กลุ่มลูกค้า",
+        "prob_yes": "โอกาสตอบรับ", "expected_profit": "กำไรคาดหวัง", "action": "คำแนะนำ"}
+COLCFG = {
+    "โอกาสตอบรับ": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1),
+    "กำไรคาดหวัง": st.column_config.NumberColumn(format="%.1f"),
+}
+
+
+def ranked(d: pd.DataFrame) -> pd.DataFrame:
+    out = d.sort_values("prob_yes", ascending=False).copy()
+    out.insert(0, "rank", range(1, len(out) + 1))
+    return out
+
+
+tab_rank, tab_about = st.tabs(["จัดอันดับรายชื่อ", "เกี่ยวกับโมเดล"])
+
+# ============================================================
+# แท็บ 1: จัดอันดับรายชื่อ
+# ============================================================
+with tab_rank:
+    demo = st.toggle("โหมดทดสอบ: จัดอันดับลูกค้าที่โทรแล้ว แล้วเทียบกับผลจริง",
+                     help="ใช้สาธิตว่าโมเดลจัดอันดับได้แม่นแค่ไหน")
+    if demo:
+        pool = df[df[C.TARGET_COL].isin(["yes", "no"]) & scored]
+    else:
+        pending = df[df[C.TARGET_COL] == "pending"]
+        waiting = pending[pending["prob_yes"].isna()]
+        pool = pending[pending["prob_yes"].notna()]
+        if len(waiting):
+            st.warning(f"มีลูกค้ารอโทร {len(waiting):,} คนที่ยังไม่มีคะแนน "
+                       f"({', '.join(waiting[C.ID_COL].head(8))}{' ...' if len(waiting) > 8 else ''}) "
+                       "ให้รัน Step 19 ใน Colab แล้วกด 'โหลดข้อมูลล่าสุด'")
+
+    if len(pool) == 0:
+        st.info("ยังไม่มีลูกค้าสถานะ 'รอโทร' ที่มีคะแนน เพิ่มได้ที่หน้า 'เพิ่มลูกค้าใหม่' หรือเปิดโหมดทดสอบ")
+    else:
+        r = ranked(pool)
+        first = r[r["prob_yes"] >= THRESHOLD]
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            ui.kpi("รายชื่อที่จัดอันดับ", ui.fmt_int(len(r)), "โทรแล้ว (ทดสอบ)" if demo else "รอโทร")
+        with c2:
+            ui.kpi("ควรโทรก่อน", ui.fmt_int(len(first)),
+                   f"โอกาสตอบรับ ≥ {ui.fmt_pct(THRESHOLD, 0)}", "teal")
+        with c3:
+            ui.kpi("โอกาสตอบรับเฉลี่ยของกลุ่มนี้",
+                   ui.fmt_pct(first["prob_yes"].mean() if len(first) else 0),
+                   f"ทั้งรายชื่อ {ui.fmt_pct(r['prob_yes'].mean())}", "teal")
+        with c4:
+            ui.kpi("กำไรคาดหวัง (โทรเฉพาะกลุ่มนี้)", f"{first['expected_profit'].sum():,.0f}",
+                   f"โทรทุกคน {r['expected_profit'].sum():,.0f}", "amber")
+
+        show = dict(SHOW)
+        if demo:
+            r["actual"] = (r[C.TARGET_COL] == "yes").astype(int)
+            n10 = max(len(r) // 10, 1)
+            top10, bot10, allr = (r.head(n10)["actual"].mean(), r.tail(n10)["actual"].mean(),
+                                  r["actual"].mean())
+            st.write("")
+            ui.card("ผลทดสอบกับข้อมูลจริง",
+                    f"10% ที่โมเดลจัดไว้บนสุด ตอบรับจริง <b>{ui.fmt_pct(top10)}</b> · "
+                    f"ทั้งหมด {ui.fmt_pct(allr)} · 10% ล่างสุด {ui.fmt_pct(bot10)} "
+                    f"(บนสุดดีกว่าค่าเฉลี่ย {top10 / max(allr, 1e-9):.1f} เท่า) "
+                    "หมายเหตุ: ข้อมูลชุดนี้ซ้อนกับข้อมูลที่ใช้เทรนบางส่วน ตัวเลขจึงอาจดีกว่าตอนใช้จริง")
+            r[C.TARGET_COL] = r[C.TARGET_COL].map(C.STATUS_LABELS)
+            show[C.TARGET_COL] = "ผลจริง"
+
+        st.write("")
+        only_first = st.checkbox("แสดงเฉพาะ 'ควรโทรก่อน'", value=False)
+        table = (first if only_first else r)[list(show)].rename(columns=show)
+        st.dataframe(table, hide_index=True, width="stretch", column_config=COLCFG,
+                     height=min(460, 36 * (len(table) + 1) + 4))
+        st.download_button("ดาวน์โหลดรายชื่อตามอันดับ (CSV)",
+                           table.to_csv(index=False).encode("utf-8-sig"),
+                           "call_priority_list.csv", icon=":material/download:")
+
+# ============================================================
+# แท็บ 2: เกี่ยวกับโมเดล
+# ============================================================
+with tab_about:
+    left, right = st.columns([3, 2])
+    with left:
+        ui.card("โมเดลทำงานอย่างไร",
+                "โมเดลเรียนจากการโทรในอดีตว่าลูกค้าแบบไหนตอบรับ แล้วให้คะแนนโอกาสตอบรับของลูกค้าแต่ละคน "
+                "ใช้เฉพาะข้อมูลที่รู้ก่อนโทร (ข้อมูลส่วนตัว การเงิน ช่องทาง และประวัติการติดต่อ) "
+                "ความน่าจะเป็นผ่านการ calibrate แล้ว จึงนำไปคำนวณกำไรคาดหวังได้")
+        ui.card("ขั้นตอนการให้คะแนน",
+                "เว็บบันทึกลูกค้าลง Google Sheet → Colab อ่านลูกค้าจาก Sheet แล้วให้คะแนนด้วยโมเดลที่เทรนไว้ "
+                "(Step 19) → เขียนคะแนนกลับลง Sheet → เว็บแสดงอันดับ "
+                "ถ้าแก้ข้อมูลลูกค้า คะแนนของแถวนั้นจะถูกล้าง และต้องรัน Step 19 ใหม่")
+        ui.card("กำไรคาดหวัง",
+                f"= โอกาสตอบรับ × {PROFIT:g} − {COST:g} (กำไรต่อคนที่ตอบรับและต้นทุนต่อสายเป็นค่าสมมติ) "
+                "ค่าบวก = โทรแล้วคุ้ม")
+    with right:
+        rows = [("ลูกค้าที่มีคะแนน", f"{int(scored.sum()):,} จาก {len(df):,} คน")]
+        rows += [(k, str(v)) for k, v in info.items()]
+        st.dataframe(pd.DataFrame(rows, columns=["รายการ", "ค่า"]),
+                     hide_index=True, width="stretch")
+        if not info:
+            st.caption("ยังไม่มีชีต model_info (Colab จะสร้างให้ตอนรัน Step 19)")
