@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<workbook original-version='18.1' source-build='2023.3.0 (20233.23.1017.0948)' source-platform='win' version='18.1' xmlns:user='http://www.tableausoftware.com/xml/user'>
+  <preferences>
+    <preference name='ui.encoding.shelf.height' value='24' />
+    <preference name='ui.shelf.height' value='26' />
+  </preferences>
+  <datasources>
+    <datasource caption='ลูกค้า (bank_data)' inline='true' name='federated.bank_call_tracker' version='18.1'>
+      <connection class='federated'>
+        <named-connections>
+          <named-connection caption='bank_data' name='excel-direct.bank_data'>
+            <connection class='excel-direct' cleaning='no' compat='no' dataRefreshTime='' filename="C:\KMITL\data tool\bank-call-tracker\data\bank_data.xlsx" interpretationMode='0' password='' server='' validate='no' />
+          </named-connection>
+        </named-connections>
+        <relation connection='excel-direct.bank_data' name='customers' table='[customers$]' type='table' />
+      </connection>
+      <column caption="รหัสลูกค้า" datatype='string' name='[customer_id]' role='dimension' type='nominal' /><column caption="อายุ" datatype='integer' name='[age]' role='measure' type='quantitative' /><column caption="อาชีพ" datatype='string' name='[job]' role='dimension' type='nominal' /><column caption="ช่องทางติดต่อ" datatype='string' name='[contact]' role='dimension' type='nominal' /><column caption="เดือน" datatype='string' name='[month]' role='dimension' type='nominal' /><column caption="ผลแคมเปญก่อน" datatype='string' name='[poutcome]' role='dimension' type='nominal' /><column caption="ผลการโทร" datatype='string' name='[y]' role='dimension' type='nominal' /><column caption="โอกาสตอบรับ (ML)" datatype='real' name='[prob_yes]' role='measure' type='quantitative' /><column caption="อัตราตอบรับ" datatype='real' default-format="p0.0%" name='[Calculation_conv]' role='measure' type='quantitative'><calculation class='tableau' formula="SUM(IIF([y]='yes',1,0)) / SUM(IIF([y]='yes' OR [y]='no',1,0))" /></column><column caption="โทรแล้ว (คน)" datatype='integer' default-format="n#,##0" name='[Calculation_called]' role='measure' type='quantitative'><calculation class='tableau' formula="IIF([y]='yes' OR [y]='no',1,0)" /></column><column caption="ตอบรับ (คน)" datatype='integer' default-format="n#,##0" name='[Calculation_yes]' role='measure' type='quantitative'><calculation class='tableau' formula="IIF([y]='yes',1,0)" /></column><column caption="รอโทร (คน)" datatype='integer' default-format="n#,##0" name='[Calculation_pending]' role='measure' type='quantitative'><calculation class='tableau' formula="IIF([y]='pending',1,0)" /></column><column caption="สถานะลูกค้า" datatype='string' name='[Calculation_status]' role='dimension' type='nominal'><calculation class='tableau' formula="CASE [y] WHEN 'yes' THEN 'ตอบรับ' WHEN 'no' THEN 'ไม่ตอบรับ' ELSE 'รอโทร' END" /></column><column caption="กลุ่มอายุ" datatype='string' name='[Calculation_agegroup]' role='dimension' type='nominal'><calculation class='tableau' formula="IF [age] &lt; 30 THEN '17-29' ELSEIF [age] &lt; 40 THEN '30-39' ELSEIF [age] &lt; 50 THEN '40-49' ELSEIF [age] &lt; 60 THEN '50-59' ELSE '60+' END" /></column><column caption="เดือน (เรียงลำดับ)" datatype='string' name='[Calculation_month]' role='dimension' type='nominal'><calculation class='tableau' formula="CASE [month] WHEN 'jan' THEN '01 ม.ค.' WHEN 'feb' THEN '02 ก.พ.' WHEN 'mar' THEN '03 มี.ค.' WHEN 'apr' THEN '04 เม.ย.' WHEN 'may' THEN '05 พ.ค.' WHEN 'jun' THEN '06 มิ.ย.' WHEN 'jul' THEN '07 ก.ค.' WHEN 'aug' THEN '08 ส.ค.' WHEN 'sep' THEN '09 ก.ย.' WHEN 'oct' THEN '10 ต.ค.' WHEN 'nov' THEN '11 พ.ย.' WHEN 'dec' THEN '12 ธ.ค.' END" /></column><column caption="ระดับคะแนน ML" datatype='string' name='[Calculation_score]' role='dimension' type='nominal'><calculation class='tableau' formula="IF ISNULL([prob_yes]) THEN '4 ยังไม่มีคะแนน' ELSEIF [prob_yes] &gt;= 0.5 THEN '1 สูง (≥ 50%)' ELSEIF [prob_yes] &gt;= 0.2 THEN '2 กลาง (20-50%)' ELSE '3 ต่ำ (&lt; 20%)' END" /></column>
+    </datasource>
+  </datasources>
+  <worksheets>
+    <worksheet name='Sheet 1'>
+      <table>
+        <view><datasources /><aggregation value='true' /></view>
+        <style />
+        <panes><pane selection-relaxation-option='selection-relaxation-allow'><view><breakdown value='auto' /></view><mark class='Automatic' /></pane></panes>
+        <rows /><cols />
+      </table>
+    </worksheet>
+  </worksheets>
+  
+  <windows source-height='30'>
+    <window class='worksheet' name="Sheet 1">
+      <cards>
+        <edge name='left'><strip size='160'><card type='pages' /><card type='filters' /><card type='marks' /></strip></edge>
+        <edge name='top'><strip size='2147483647'><card type='columns' /></strip><strip size='2147483647'><card type='rows' /></strip><strip size='31'><card type='title' /></strip></edge>
+      </cards>
+    </window>
+  </windows>
+</workbook>
