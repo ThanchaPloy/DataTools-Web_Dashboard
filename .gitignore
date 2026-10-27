@@ -4,3 +4,6 @@ __pycache__/
 .venv-*/
 credentials/*.json
 data/bank_data.xlsx
+outputs/
+~$*
+~$*.xlsx

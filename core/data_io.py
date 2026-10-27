@@ -5,6 +5,7 @@
 - สร้างรหัสลูกค้าใหม่
 - นำเข้าข้อมูลครั้งแรกจาก CSV
 """
+import io
 from datetime import datetime
 
 import pandas as pd
@@ -15,7 +16,8 @@ from core.storage import StorageError, make_storage
 
 __all__ = ["StorageError", "load_data", "require_data", "save_customers", "append_log",
            "append_customer", "next_ids", "now_str", "log_entries", "is_initialized",
-           "build_from_csv", "load_model_info", "add_derived", "refresh", "storage_label"]
+           "build_from_csv", "load_model_info", "add_derived", "refresh", "storage_label",
+           "import_scores", "export_excel_bytes"]
 
 NUMERIC_COLUMNS = C.INT_COLUMNS + C.MACRO_COLUMNS + ["prob_yes"]
 CACHE_TTL = 60          # วินาที: อ่านข้อมูลจาก Google Sheet ใหม่อย่างน้อยทุก 1 นาที
@@ -161,6 +163,56 @@ def append_customer(record: dict) -> str:
     storage().append(C.SHEET_CUSTOMERS, pd.DataFrame([row], columns=C.ALL_COLUMNS))
     append_log([("เพิ่ม", new_id, "เพิ่มจากฟอร์มลูกค้าใหม่")])
     return new_id
+
+
+def import_scores(scores: pd.DataFrame, info: pd.DataFrame) -> tuple:
+    """
+    นำเข้าคะแนนที่ Colab สร้าง (ไฟล์ scores_from_colab.xlsx) จับคู่ด้วย customer_id
+    - เขียนทับคอลัมน์คะแนน 4 คอลัมน์ของลูกค้าที่จับคู่ได้
+    - บันทึกชีต model_info
+    คืนค่า (จำนวนที่จับคู่ได้, จำนวนที่ไม่พบในข้อมูล)
+    """
+    need = [C.ID_COL] + C.SCORE_COLUMNS
+    missing = [c for c in need if c not in scores.columns]
+    if missing:
+        raise ValueError(f"ไฟล์คะแนนขาดคอลัมน์: {missing} (ต้องเป็นไฟล์ที่ได้จาก Colab Step 19)")
+    refresh()
+    customers, _ = load_data()
+    sc = scores[need].copy()
+    sc[C.ID_COL] = sc[C.ID_COL].astype(str)
+    sc = sc.drop_duplicates(C.ID_COL, keep="last").set_index(C.ID_COL)
+    full = customers.set_index(C.ID_COL)
+    matched = full.index.intersection(sc.index)
+    for col in C.SCORE_COLUMNS:
+        full[col] = full[col].astype(object)
+        full.loc[matched, col] = sc.loc[matched, col].replace("", pd.NA).values
+    save_customers(full.reset_index())
+    if info is not None and {"key", "value"} <= set(info.columns):
+        storage().write(C.SHEET_MODEL_INFO, info[["key", "value"]])
+    append_log([("นำเข้าคะแนน", "-", f"นำเข้าคะแนนจาก Colab {len(matched):,} คน")])
+    return len(matched), len(sc.index.difference(full.index))
+
+
+def export_excel_bytes() -> bytes:
+    """
+    รวมข้อมูลปัจจุบันทั้งหมด (customers, change_log, model_info) เป็นไฟล์ Excel ไฟล์เดียว
+    ใช้โดยปุ่ม 'ดาวน์โหลด bank_data.xlsx' ที่แถบด้านข้าง (สำรองข้อมูล / เปิดดู / ป้อนให้ Tableau)
+    ทำงานได้ทั้งสองโหมด (excel และ gsheet)
+    """
+    customers, log = load_data()
+    if customers is None:
+        raise StorageError("ยังไม่มีข้อมูลลูกค้า")
+    try:
+        info = storage().read(C.SHEET_MODEL_INFO)
+    except StorageError:
+        info = pd.DataFrame(columns=["key", "value"])
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        customers.to_excel(writer, sheet_name=C.SHEET_CUSTOMERS, index=False)
+        log.to_excel(writer, sheet_name=C.SHEET_LOG, index=False)
+        info.to_excel(writer, sheet_name=C.SHEET_MODEL_INFO, index=False)
+    return buf.getvalue()
 
 
 def build_from_csv(overwrite: bool = False) -> int:

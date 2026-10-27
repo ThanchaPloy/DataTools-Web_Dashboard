@@ -13,11 +13,14 @@ from pathlib import Path
 #   "gsheet" = Google Sheet (ใช้จริง)
 #   "excel"  = ไฟล์ Excel ในเครื่อง (ทางสำรอง ใช้ได้โดยไม่ต้องต่ออินเทอร์เน็ต)
 # ------------------------------------------------------------
-STORAGE = "gsheet"
+STORAGE = "excel"
 
 # Sheet ID: ส่วนของลิงก์ระหว่าง /d/ กับ /edit
 # https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit
-SHEET_ID = "1k6rnMYigp3tXUi__VijyFeuPaDZRMM6n8ryL7TvK6SE"
+SHEET_ID = ""
+
+# ชื่อกลุ่ม: ใช้ตั้งชื่อไฟล์ที่เว็บสร้างให้ (ข้อกำหนดวิชา: ชื่อไฟล์ต้องเป็นชื่อกลุ่ม)
+GROUP_NAME = "66050762-67050131"
 
 # ------------------------------------------------------------
 # ที่อยู่ไฟล์
@@ -26,6 +29,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 RAW_CSV = DATA_DIR / "raw" / "bank-additional.csv"      # ไฟล์ต้นฉบับ ห้ามแก้
 EXCEL_PATH = DATA_DIR / "bank_data.xlsx"                 # ใช้เมื่อ STORAGE = "excel"
+OUTPUT_DIR = BASE_DIR / "outputs"                        # ไฟล์ Excel วิเคราะห์สถิติที่สร้างจากสคริปต์
 CREDENTIALS_PATH = BASE_DIR / "credentials" / "service_account.json"   # key ของ service account
 
 # ชื่อชีต (แท็บ) ใน Google Sheet / Excel
@@ -37,7 +41,7 @@ SHEET_MODEL_INFO = "model_info"      # Colab เป็นคนเขียน
 # Tableau Public: วาง URL ของ dashboard ที่ publish แล้วตรงนี้
 # เช่น "https://public.tableau.com/views/BankMarketing/Dashboard1"
 # ------------------------------------------------------------
-TABLEAU_URL = ""
+TABLEAU_URL = "https://public.tableau.com/app/profile/thanchanok.klinkamol/viz/66050762-67050131_dashboard/Dashboard?publish=yes"
 
 # ------------------------------------------------------------
 # ค่าสมมติทางธุรกิจ (ตรงกับใน notebook ML)

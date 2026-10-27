@@ -1,6 +1,8 @@
 """
 หน้า 5: จัดอันดับลูกค้าด้วยคะแนนจากโมเดล ML
-เว็บไม่โหลดโมเดลเอง คะแนนถูกเขียนลงชีต customers โดย Colab (Step 19 ใน notebook)
+เว็บไม่โหลดโมเดลเอง คะแนนมาจาก Colab (Step 19 ใน notebook)
+- โหมด Google Sheet: Colab เขียนคะแนนลง Sheet โดยตรง
+- โหมด Excel: Colab สร้างไฟล์ scores_from_colab.xlsx แล้วนำเข้าผ่านหน้านี้
 - จัดอันดับลูกค้า 'รอโทร' ว่าควรโทรหาใครก่อน
 - โหมดทดสอบ: เทียบคะแนนกับผลจริงของลูกค้าที่โทรแล้ว
 - ข้อมูลโมเดลจากชีต model_info
@@ -12,7 +14,7 @@ import streamlit as st
 
 from core import config as C
 from core import ui
-from core.data_io import load_model_info, require_data
+from core.data_io import StorageError, import_scores, load_model_info, require_data
 
 ui.page_header("ควรโทรหาใครก่อน",
                "จัดอันดับรายชื่อด้วยคะแนนโอกาสตอบรับจากโมเดล Machine Learning (ให้คะแนนผ่าน Google Colab)",
@@ -28,10 +30,38 @@ df = customers.copy()
 df["expected_profit"] = df["prob_yes"] * PROFIT - COST
 scored = df["prob_yes"].notna()
 
+# ------------------------------------------------------------
+# นำเข้าคะแนนจาก Colab (ใช้ในโหมด Excel: Colab เขียนลงไฟล์ในเครื่องเราไม่ได้)
+# ------------------------------------------------------------
+if msg := st.session_state.pop("score_import_msg", None):
+    st.success(msg)
+if C.STORAGE == "excel":
+    with st.expander("นำเข้าคะแนนจาก Colab (scores_from_colab.xlsx)", expanded=not scored.any(),
+                     icon=":material/upload_file:"):
+        st.markdown(
+            "1) ใน Colab รันบล็อก Step 19 (ไฟล์ `colab/step19_score_excel.py`) แล้วอัปโหลด "
+            f"`{C.EXCEL_PATH.name}` จากโฟลเดอร์ `data` ของเว็บ  \n"
+            "2) Colab จะดาวน์โหลดไฟล์ `scores_from_colab.xlsx` ให้ นำมาอัปโหลดที่นี่  \n"
+            "3) ถ้าเพิ่มหรือแก้ลูกค้าหลังจากอัปโหลดไฟล์ไป Colab ลูกค้าเหล่านั้นจะยังไม่มีคะแนน ให้ทำซ้ำอีกรอบ")
+        up = st.file_uploader("ไฟล์คะแนนจาก Colab", type=["xlsx"], label_visibility="collapsed")
+        if up is not None and st.button("นำเข้าคะแนน", type="primary", icon=":material/download_done:"):
+            try:
+                sheets = pd.read_excel(up, sheet_name=None, dtype={C.ID_COL: str})
+                if "scores" not in sheets:
+                    raise ValueError("ไม่พบชีต 'scores' ในไฟล์ (ต้องเป็นไฟล์ที่ได้จาก Colab Step 19)")
+                with st.spinner("กำลังนำเข้า..."):
+                    n_ok, n_missing = import_scores(sheets["scores"], sheets.get("model_info"))
+            except (ValueError, StorageError) as e:
+                st.error(str(e))
+                st.stop()
+            note = f" (ไม่พบในข้อมูลปัจจุบัน {n_missing:,} รหัส เช่น ลูกค้าที่ถูกลบไปแล้ว)" if n_missing else ""
+            st.session_state.score_import_msg = f"นำเข้าคะแนนเรียบร้อย {n_ok:,} คน{note}"
+            st.rerun()
+
 if not scored.any():
-    ui.card("ยังไม่มีคะแนนจากโมเดล",
-            "1) เปิด notebook ใน Colab แล้วรันให้ถึง Step 19 (ให้คะแนนลูกค้าใน Google Sheet) · "
-            "2) กลับมากด 'โหลดข้อมูลล่าสุด' ที่เมนูด้านซ้าย")
+    how = ("รัน Step 19 ใน Colab แล้วนำเข้าไฟล์คะแนนในกล่องด้านบน" if C.STORAGE == "excel" else
+           "เปิด notebook ใน Colab แล้วรันให้ถึง Step 19 จากนั้นกด 'โหลดข้อมูลล่าสุด' ที่เมนูด้านซ้าย")
+    ui.card("ยังไม่มีคะแนนจากโมเดล", how)
     st.stop()
 
 SHOW = {"rank": "อันดับ", C.ID_COL: "รหัสลูกค้า", "age": "อายุ", "job": "อาชีพ",
@@ -66,7 +96,8 @@ with tab_rank:
         if len(waiting):
             st.warning(f"มีลูกค้ารอโทร {len(waiting):,} คนที่ยังไม่มีคะแนน "
                        f"({', '.join(waiting[C.ID_COL].head(8))}{' ...' if len(waiting) > 8 else ''}) "
-                       "ให้รัน Step 19 ใน Colab แล้วกด 'โหลดข้อมูลล่าสุด'")
+                       + ("ให้รัน Step 19 ใน Colab แล้วนำเข้าไฟล์คะแนนอีกครั้ง" if C.STORAGE == "excel"
+                          else "ให้รัน Step 19 ใน Colab แล้วกด 'โหลดข้อมูลล่าสุด'"))
 
     if len(pool) == 0:
         st.info("ยังไม่มีลูกค้าสถานะ 'รอโทร' ที่มีคะแนน เพิ่มได้ที่หน้า 'เพิ่มลูกค้าใหม่' หรือเปิดโหมดทดสอบ")
@@ -123,8 +154,8 @@ with tab_about:
                 "ใช้เฉพาะข้อมูลที่รู้ก่อนโทร (ข้อมูลส่วนตัว การเงิน ช่องทาง และประวัติการติดต่อ) "
                 "ความน่าจะเป็นผ่านการ calibrate แล้ว จึงนำไปคำนวณกำไรคาดหวังได้")
         ui.card("ขั้นตอนการให้คะแนน",
-                "เว็บบันทึกลูกค้าลง Google Sheet → Colab อ่านลูกค้าจาก Sheet แล้วให้คะแนนด้วยโมเดลที่เทรนไว้ "
-                "(Step 19) → เขียนคะแนนกลับลง Sheet → เว็บแสดงอันดับ "
+                "เว็บบันทึกลูกค้าลงไฟล์ข้อมูล → Colab อ่านลูกค้าแล้วให้คะแนนด้วยโมเดลที่เทรนไว้ (Step 19) "
+                "→ คะแนนกลับมาที่เว็บ (โหมด Excel: นำเข้าไฟล์ scores_from_colab.xlsx) → เว็บแสดงอันดับ "
                 "ถ้าแก้ข้อมูลลูกค้า คะแนนของแถวนั้นจะถูกล้าง และต้องรัน Step 19 ใหม่")
         ui.card("กำไรคาดหวัง",
                 f"= โอกาสตอบรับ × {PROFIT:g} − {COST:g} (กำไรต่อคนที่ตอบรับและต้นทุนต่อสายเป็นค่าสมมติ) "

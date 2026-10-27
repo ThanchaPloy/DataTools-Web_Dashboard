@@ -8,8 +8,8 @@ import streamlit as st
 from core import config as C
 from core import ui
 from core.analytics import conversion_by, kpis
-from core.data_io import (StorageError, add_derived, build_from_csv, is_initialized, load_data,
-                          refresh, storage_label)
+from core.data_io import (StorageError, add_derived, build_from_csv, export_excel_bytes,
+                          is_initialized, load_data, now_str, refresh, storage_label)
 
 st.set_page_config(page_title="Bank Call Tracker", page_icon=":material/call:", layout="wide")
 ui.apply_theme()
@@ -112,8 +112,12 @@ nav = st.navigation({
     ],
     "วิเคราะห์": [
         st.Page("views/3_Analytics.py", title="บทวิเคราะห์", icon=":material/insights:"),
+        st.Page("views/6_Inferential_Stats.py", title="สถิติเชิงอนุมาน", icon=":material/functions:"),
         st.Page("views/4_Tableau_Dashboard.py", title="Tableau Dashboard", icon=":material/bar_chart:"),
         st.Page("views/5_Lead_Scoring.py", title="จัดอันดับลูกค้า (ML)", icon=":material/target:"),
+    ],
+    "เกี่ยวกับ": [
+        st.Page("views/7_About.py", title="เกี่ยวกับโปรเจค", icon=":material/info:"),
     ],
 })
 
@@ -123,6 +127,18 @@ with st.sidebar:
                  help="ดึงข้อมูลใหม่จากแหล่งข้อมูล เช่น หลังรัน Colab ให้คะแนนลูกค้า"):
         refresh()
         st.rerun()
+
+    try:
+        _xlsx = export_excel_bytes()
+    except StorageError:
+        _xlsx = None
+    st.download_button(
+        "ดาวน์โหลด bank_data.xlsx", data=_xlsx or b"", disabled=_xlsx is None,
+        file_name=f"{C.GROUP_NAME}_bank_data_{now_str().replace(':', '').replace(' ', '_').replace('-', '')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        icon=":material/download:", width="stretch",
+        help="สำรองข้อมูลทั้งหมด (customers, change_log, model_info) เป็นไฟล์เดียว "
+             "เปิดดูเอง หรือใช้เป็นแหล่งข้อมูลให้ Tableau บนเครื่องอื่นได้")
     st.caption("ข้อมูล: UCI Bank Marketing")
 
 nav.run()

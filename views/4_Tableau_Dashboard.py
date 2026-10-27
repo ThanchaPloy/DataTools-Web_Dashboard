@@ -11,7 +11,7 @@ from core import config as C
 from core import ui
 
 ui.page_header("Tableau Dashboard",
-               "Dashboard ที่สร้างจาก Google Sheet ชุดเดียวกับเว็บนี้",
+               "Dashboard ที่สร้างจากข้อมูลชุดเดียวกับเว็บนี้ (bank_data.xlsx)",
                eyebrow="วิเคราะห์")
 
 url = C.TABLEAU_URL

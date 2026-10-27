@@ -13,7 +13,8 @@ from core import config as C
 from core import ui
 from core.analytics import (called_only, chi_square, chi_square_summary, compare_groups,
                             conversion_by, describe_numeric, kpis)
-from core.data_io import add_derived, require_data
+from core.data_io import add_derived, now_str, require_data
+from core.excel_report import build_analysis_workbook
 
 ui.page_header("บทวิเคราะห์อัตราตอบรับ",
                "ลูกค้าแบบไหนตอบรับมากที่สุด ควรติดต่อช่องทางไหน เมื่อไร และภาวะเศรษฐกิจมีผลอย่างไร",
@@ -38,7 +39,8 @@ with c3:
     ui.kpi("ตอบรับ", ui.fmt_int(k["yes"]), "คน", "teal")
 st.write("")
 
-tab_insight, tab_dim, tab_stat = st.tabs(["Insight สำคัญ", "อัตราตอบรับ 5 มิติ", "สถิติและการทดสอบ"])
+tab_insight, tab_dim, tab_stat, tab_excel = st.tabs(
+    ["Insight สำคัญ", "อัตราตอบรับ 5 มิติ", "สถิติและการทดสอบ", "ไฟล์ Excel วิเคราะห์สถิติ"])
 
 # ============================================================
 # แท็บ 1: Insight สำคัญ (หากลุ่มที่ตอบรับสูง / ต่ำกว่าค่าเฉลี่ยมากที่สุด)
@@ -140,3 +142,39 @@ with tab_stat:
     if r["chi2"] is not None:
         verdict = "เกี่ยวข้องอย่างมีนัยสำคัญ" if r["significant"] else "ไม่พบความเกี่ยวข้องอย่างมีนัยสำคัญ"
         st.markdown(f"χ² = {r['chi2']:.2f}, df = {r['dof']}, p-value = {r['p']:.2e} → **{verdict}**")
+
+# ============================================================
+# แท็บ 4: สร้างไฟล์ Excel วิเคราะห์สถิติ (ใช้สูตร Excel จริงทุกค่า)
+# ============================================================
+with tab_excel:
+    left, right = st.columns([3, 2])
+    with left:
+        ui.card("ไฟล์ Excel สำหรับส่งงาน",
+                "สร้างจากข้อมูลลูกค้าที่โทรแล้วในเว็บตอนนี้ ทุกค่าเป็นสูตร Excel ที่อ้างอิงชีต Data "
+                "แก้ข้อมูลแล้วผลคำนวณใหม่เอง เปิดด้วย Microsoft Excel แล้วสูตรจะคำนวณตอนเปิดไฟล์")
+        sheets = pd.DataFrame([
+            ("Descriptive", "สถิติเชิงพรรณนา, ช่วงความเชื่อมั่น, ตารางความถี่ + Histogram"),
+            ("Conversion", "อัตราตอบรับและ Lift แยก 7 มิติ แบบ Pivot + กราฟ"),
+            ("T-Test", "Welch's t-test: อายุ, จำนวนครั้งที่โทร (ตอบรับ vs ไม่ตอบรับ)"),
+            ("ANOVA", "One-way ANOVA: อายุตามสถานภาพ, จำนวนครั้งที่โทรตามอาชีพ"),
+            ("Chi-Square", "Chi-square test 5 ตัวแปร × ผลการโทร + Cramér's V"),
+            ("Z-Test", "ทดสอบสัดส่วนมือถือ vs โทรศัพท์บ้าน + ช่วงความเชื่อมั่น"),
+            ("Correlation", "เมทริกซ์สหสัมพันธ์ 10 ตัวแปร"),
+            ("Solver", "Linear Programming จัดสรรจำนวนสายโทร (ตั้งค่า Solver ไว้ให้แล้ว)"),
+        ], columns=["ชีต", "เนื้อหา"])
+        st.dataframe(sheets, hide_index=True, width="stretch")
+    with right:
+        st.markdown(f"**ชื่อไฟล์:** `{C.GROUP_NAME}_statistical_analysis.xlsx`")
+        if st.button("สร้างไฟล์ Excel", type="primary", icon=":material/table_view:"):
+            with st.spinner("กำลังสร้างไฟล์..."):
+                try:
+                    st.session_state.analysis_xlsx = build_analysis_workbook(
+                        customers, C.GROUP_NAME, now_str())
+                except ValueError as e:
+                    st.error(str(e))
+        if st.session_state.get("analysis_xlsx"):
+            st.download_button("ดาวน์โหลดไฟล์ Excel", st.session_state.analysis_xlsx,
+                               f"{C.GROUP_NAME}_statistical_analysis.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               icon=":material/download:", width="stretch")
+            st.caption("ไฟล์นี้สร้างจากข้อมูล ณ ตอนกดปุ่ม ถ้าแก้ข้อมูลในเว็บแล้ว ให้กดสร้างใหม่")
