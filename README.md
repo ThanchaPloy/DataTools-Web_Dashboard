@@ -31,7 +31,8 @@ bank-call-tracker/
 │   ├── 3_Analytics.py           # Insight, อัตราตอบรับ 5 มิติ, สถิติ, Chi-square
 │   ├── 4_Tableau_Dashboard.py   # ฝัง Tableau Public
 │   ├── 5_Lead_Scoring.py        # จัดอันดับลูกค้าจากคะแนนที่ Colab เขียนไว้
-│   └── 6_Inferential_Stats.py   # สถิติเชิงอนุมาน: Descriptive, T-Test, ANOVA, Z-Test, Correlation, Solver
+│   ├── 6_Inferential_Stats.py   # สถิติเชิงอนุมาน: Descriptive, T-Test, ANOVA, Z-Test, Correlation, Solver
+│   └── 7_About.py               # เกี่ยวกับโปรเจค: โจทย์ แหล่งข้อมูล ภาพรวมระบบ (เวอร์ชันสั้นไว้เปิดก่อนเดโม)
 ├── core/                        # โค้ดที่ทุกหน้าใช้ร่วมกัน
 │   ├── config.py                # STORAGE, SHEET_ID, คอลัมน์, ค่าที่อนุญาต, ป้ายภาษาไทย, URL Tableau
 │   ├── storage.py               # อ่าน/เขียน Google Sheet หรือ Excel (เลือกที่ config)
@@ -110,9 +111,10 @@ streamlit run app.py
 หน้า **บทวิเคราะห์** → แท็บ **ไฟล์ Excel วิเคราะห์สถิติ** → **สร้างไฟล์ Excel** → **ดาวน์โหลด**
 (หรือ `python scripts/build_analysis_excel.py` ได้ไฟล์ใน `outputs/`)
 
-ชีต: Descriptive, Conversion (Pivot), T-Test, ANOVA, Chi-Square, Z-Test, Correlation, Solver และ Data
+ชีต (เรียงตามจริงในไฟล์): README (สรุปทุกชีต + หมายเหตุ), Descriptive, Conversion (Pivot), T-Test, ANOVA, Chi-Square, Z-Test, Correlation, Solver, Data (อยู่ท้ายสุด)
 ผลชุดเดียวกันดูในเว็บได้ที่หน้า **สถิติเชิงอนุมาน** (คำนวณด้วย Python ตัวเลขตรงกับไฟล์)
 ทุกค่าเป็นสูตร Excel ที่อ้างอิงชีต Data ชีต Solver ตั้งค่าไว้แล้ว เปิด Data → Solver แล้วกด Solve ได้ทันที
+ต้องมีลูกค้าที่โทรแล้ว (ตอบรับ/ไม่ตอบรับ) อย่างน้อย **30 คน** ไม่งั้นระบบจะแจ้งเตือนว่าข้อมูลน้อยเกินไปและไม่สร้างไฟล์ให้
 
 ## 5. Tableau
 
@@ -135,6 +137,7 @@ python scripts/build_tableau.py
 | สถิติเชิงอนุมาน | Descriptive + Histogram, T-Test / ANOVA / Z-Test (เลือกตัวแปรเอง ปรับ α ได้), Correlation heatmap, Solver จัดสรรสายโทรด้วยแถบเลื่อน (ผลตรงกับไฟล์ Excel) |
 | Tableau Dashboard | แสดง dashboard ที่ publish บน Tableau Public |
 | จัดอันดับลูกค้า (ML) | จัดอันดับลูกค้า "รอโทร", โหมดทดสอบเทียบผลจริง, ข้อมูลโมเดล |
+| เกี่ยวกับโปรเจค | สรุปโจทย์ แหล่งข้อมูล และภาพรวมระบบในหน้าเดียว ไว้เปิดก่อนเริ่มเดโม/พรีเซนต์ |
 
 ## ปัญหาที่พบบ่อย
 
